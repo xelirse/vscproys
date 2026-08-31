@@ -170,7 +170,7 @@ function crearEstilos() {
       scrollbar-gutter: stable;
       padding: 14px 16px 8px 18px;
       display: flex;
-      align-items: flex-end;
+      align-items: stretch;
       justify-content: flex-start;
     }
 
@@ -188,16 +188,26 @@ function crearEstilos() {
     }
 
     .result {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
       font-size: clamp(1.2rem, 4vw, 2.5rem);
       font-weight: 700;
       word-break: break-word;
       overflow-wrap: anywhere;
       width: 100%;
-      min-height: 2.5rem;
+      height: 100%;
+      min-height: 100%;
       line-height: 1.2;
       text-align: left;
       padding-left: 6px;
-      align-self: flex-start;
+      align-self: stretch;
+      resize: none;
+      border: none;
+      background: transparent;
+      color: #0f172a;
+      outline: none;
+      display: block;
+      white-space: pre-wrap;
+      box-sizing: border-box;
     }
 
     .periodic {
@@ -370,10 +380,12 @@ function crearCalculadora() {
   var resultWrap = document.createElement('div');
   resultWrap.className = 'result-wrap';
 
-  var result = document.createElement('div');
+  var result = document.createElement('textarea');
   result.className = 'result';
   result.id = 'result';
-  result.textContent = '0';
+  result.value = '0';
+  result.readOnly = true;
+  result.rows = 2;
 
   var displayFooter = document.createElement('div');
   displayFooter.className = 'display-footer';
@@ -482,8 +494,7 @@ function actualizarDisplay(result, currentValue) {
   var longitud = textoPlano === 'Error' ? 5 : textoPlano.replace('-', '').length;
   var digitCount = result.digitCount;
 
-  var textoVisible = textoPlano.replace(/\(([^)]+)\)/g, '<span class="periodic">($1)</span>');
-  result.innerHTML = textoVisible;
+  result.value = textoPlano;
 
   if (digitCount) {
     digitCount.textContent = 'Dígitos: ' + longitud;
