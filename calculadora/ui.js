@@ -139,10 +139,46 @@ function crearEstilos() {
       padding-right: 4px;
     }
 
-    .keys {
+    .calculator-layout {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 1.6fr) 110px;
+      grid-template-rows: auto auto;
       gap: 12px;
+      align-items: stretch;
+    }
+
+    .keys {
+      grid-column: 1;
+      grid-row: 2;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .operations {
+      grid-column: 2;
+      grid-row: 1;
+      display: grid;
+      grid-template-rows: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .display {
+      grid-column: 2;
+      grid-row: 2;
+      background: #f8fafc;
+      color: #0f172a;
+      min-height: 86px;
+      border-radius: 16px;
+      margin-bottom: 0;
+      padding: 14px 16px 10px 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.08);
+      gap: 4px;
     }
 
     button {
@@ -156,6 +192,11 @@ function crearEstilos() {
       color: var(--text);
       transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
       box-shadow: 0 6px 0 rgba(15, 23, 42, 0.25);
+    }
+
+    .operations button,
+    .keys button {
+      width: 100%;
     }
 
     button:hover {
@@ -246,27 +287,36 @@ function crearCalculadora() {
   display.appendChild(result);
   display.appendChild(digitCount);
 
+  var layout = document.createElement('div');
+  layout.className = 'calculator-layout';
+
   var keys = document.createElement('div');
   keys.className = 'keys';
+
+  var operations = document.createElement('div');
+  operations.className = 'operations';
 
   var keyConfigs = [
     { label: 'C', className: 'clear', action: 'clear' },
     { label: 'DEL', action: 'delete' },
-    { label: '÷', value: '/', className: 'operator' },
-    { label: '×', value: '*', className: 'operator' },
     { label: '7', value: '7' },
     { label: '8', value: '8' },
     { label: '9', value: '9' },
-    { label: '−', value: '-', className: 'operator' },
     { label: '4', value: '4' },
     { label: '5', value: '5' },
     { label: '6', value: '6' },
-    { label: '+', value: '+', className: 'operator' },
     { label: '1', value: '1' },
     { label: '2', value: '2' },
     { label: '3', value: '3' },
-    { label: '=', action: 'equals', className: 'equal' },
     { label: '0', value: '0', className: 'zero' }
+  ];
+
+  var operationConfigs = [
+    { label: '÷', value: '/', className: 'operator' },
+    { label: '×', value: '*', className: 'operator' },
+    { label: '−', value: '-', className: 'operator' },
+    { label: '+', value: '+', className: 'operator' },
+    { label: '=', action: 'equals', className: 'equal' }
   ];
 
   keyConfigs.forEach(function (item) {
@@ -292,8 +342,34 @@ function crearCalculadora() {
     keys.appendChild(button);
   });
 
-  calculator.appendChild(display);
-  calculator.appendChild(keys);
+  operationConfigs.forEach(function (item) {
+    var label = item.label;
+    var value = item.value;
+    var action = item.action;
+    var className = item.className || '';
+    var button = document.createElement('button');
+
+    if (className) {
+      button.className = className;
+    }
+
+    if (action) {
+      button.dataset.action = action;
+    }
+
+    if (value) {
+      button.dataset.value = value;
+    }
+
+    button.textContent = label;
+    operations.appendChild(button);
+  });
+
+  layout.appendChild(keys);
+  layout.appendChild(operations);
+  layout.appendChild(display);
+
+  calculator.appendChild(layout);
   appShell.appendChild(historyPanel);
   appShell.appendChild(calculator);
 
@@ -304,7 +380,7 @@ function crearCalculadora() {
     result: result,
     digitCount: digitCount,
     historyList: historyList,
-    buttons: Array.from(keys.querySelectorAll('button'))
+    buttons: Array.from(keys.querySelectorAll('button')).concat(Array.from(operations.querySelectorAll('button')))
   };
 }
 
