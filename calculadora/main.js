@@ -8,6 +8,8 @@ function programa() {
   var history = calculadora.history;
   var result = calculadora.result;
   var digitCount = calculadora.digitCount;
+  var copyButton = calculadora.copyButton;
+  var saveButton = calculadora.saveButton;
   var historyList = calculadora.historyList;
   var buttons = calculadora.buttons;
 
@@ -23,7 +25,7 @@ function programa() {
     historial: []
   };
 
-  asociarEventos(estado, result, history, buttons, historyList);
+  asociarEventos(estado, result, history, buttons, historyList, copyButton, saveButton);
   actualizarDisplay(result, estado.currentValue);
   actualizarHistory(history, estado.previousValue, estado.operator, estado.currentValue, estado.waitingForNewValue);
   actualizarListaHistorial(historyList, estado.historial);

@@ -29,6 +29,48 @@ function limpiarCalculadora(estado, result, history, historyList) {
 }
 
 function ingresarDigito(estado, value, result, history) {
+  if (value === '(' || value === ')') {
+    if (estado.currentValue === 'Error') {
+      return;
+    }
+
+    if (estado.waitingForNewValue) {
+      estado.currentValue = value;
+      estado.waitingForNewValue = false;
+    } else if (estado.currentValue === '0') {
+      estado.currentValue = value === '(' ? '(' : '0';
+    } else {
+      estado.currentValue = estado.currentValue + value;
+    }
+
+    estado.justEvaluated = false;
+    actualizarDisplay(result, estado.currentValue);
+    actualizarHistory(history, estado.previousValue, estado.operator, estado.currentValue, estado.waitingForNewValue);
+    return;
+  }
+
+  if (value === ',' || value === '.') {
+    if (estado.currentValue === 'Error') {
+      return;
+    }
+
+    var textoActual = String(estado.currentValue || '');
+
+    if (estado.waitingForNewValue) {
+      estado.currentValue = '0,';
+      estado.waitingForNewValue = false;
+    } else if (textoActual === '' || textoActual === '0' || textoActual === '0,' || textoActual === '-' || textoActual === '-0') {
+      estado.currentValue = textoActual === '-' || textoActual === '-0' ? '-0,' : '0,';
+    } else if (textoActual.indexOf(',') === -1) {
+      estado.currentValue = textoActual + ',';
+    }
+
+    estado.justEvaluated = false;
+    actualizarDisplay(result, estado.currentValue);
+    actualizarHistory(history, estado.previousValue, estado.operator, estado.currentValue, estado.waitingForNewValue);
+    return;
+  }
+
   if (estado.waitingForNewValue) {
     estado.currentValue = value;
     estado.waitingForNewValue = false;
@@ -82,6 +124,10 @@ function parseRacional(value) {
     return null;
   }
 
+  if (texto.endsWith(',')) {
+    return null;
+  }
+
   if (texto.indexOf('(') !== -1 || texto.indexOf(',') !== -1) {
     var signo = 1n;
     if (texto.charAt(0) === '-') {
@@ -119,6 +165,18 @@ function parseRacional(value) {
       return null;
     }
 
+    if (texto.indexOf('(') !== -1 && partePeriodica.length === 0) {
+      return null;
+    }
+
+    if (texto.indexOf(',') !== -1 && texto.indexOf('(') === -1) {
+      var decimal = parteNoPeriodica || '0';
+      var potencia = 10n ** BigInt(decimal.length || 1);
+      var entero = BigInt(parteEntera || '0');
+      var numerador = entero * potencia + BigInt(decimal);
+      return { num: numerador * signo, den: potencia };
+    }
+
     var entero = BigInt(parteEntera || '0');
     var n = BigInt(parteNoPeriodica.length);
     var m = BigInt(partePeriodica.length);
@@ -128,12 +186,12 @@ function parseRacional(value) {
     var den = (10n ** n) * ((10n ** m) - 1n);
     var numer = entero * den + x * ((10n ** m) - 1n) + y;
 
-    if (texto.indexOf('(') !== -1 && partePeriodica.length === 0) {
-      return null;
-    }
-
     if (partePeriodica.length === 0 && parteNoPeriodica.length === 0) {
       return { num: entero * signo, den: 1n };
+    }
+
+    if (den === 0n) {
+      return null;
     }
 
     return { num: numer * signo, den: den };
@@ -148,9 +206,17 @@ function parseRacional(value) {
 }
 
 function racionalADecimal(racional) {
+  if (racional === null || racional === undefined) {
+    return 'Error';
+  }
+
   var num = racional.num;
   var den = racional.den;
   var signo = '';
+
+  if (den === 0n) {
+    return 'Error';
+  }
 
   if (num < 0n) {
     signo = '-';

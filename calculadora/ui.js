@@ -19,6 +19,10 @@ function crearEstilos() {
       box-sizing: border-box;
     }
 
+    html, body {
+      height: 100%;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
@@ -34,9 +38,11 @@ function crearEstilos() {
       grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
       gap: 18px;
       width: min(94vw, 940px);
-      height: min(90vh, 860px);
-      max-height: 90vh;
+      height: min(88vh, 820px);
+      max-height: 88vh;
       align-items: stretch;
+      overflow: hidden;
+      min-height: 0;
     }
 
     .left-column {
@@ -52,8 +58,11 @@ function crearEstilos() {
       display: grid;
       grid-template-rows: 1fr;
       height: 100%;
-      min-height: 0;
+      min-height: 100%;
       align-content: stretch;
+      overflow: hidden;
+      gap: 12px;
+      align-self: stretch;
     }
 
     .history-panel {
@@ -107,11 +116,14 @@ function crearEstilos() {
       border: 1px solid rgba(148, 163, 184, 0.2);
       flex-shrink: 0;
       display: grid;
-      grid-template-rows: minmax(60px, auto) minmax(120px, 1fr);
+      grid-template-rows: minmax(50px, 0.75fr) minmax(120px, 1.25fr);
       gap: 12px;
       align-items: stretch;
       height: 100%;
-      min-height: 0;
+      max-height: 100%;
+      min-height: 100%;
+      overflow: hidden;
+      align-self: stretch;
     }
 
     .history {
@@ -127,6 +139,8 @@ function crearEstilos() {
       display: flex;
       align-items: center;
       height: 100%;
+      max-height: 100%;
+      overflow-y: auto;
     }
 
     .display {
@@ -134,14 +148,43 @@ function crearEstilos() {
       color: #0f172a;
       min-height: 180px;
       border-radius: 16px;
-      padding: 14px 16px 10px 18px;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      justify-content: center;
+      padding: 0;
+      display: grid;
+      grid-template-rows: 1fr auto;
       box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.08);
-      gap: 4px;
+      gap: 0;
       height: 100%;
+      max-height: 100%;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .result-wrap {
+      width: 100%;
+      height: 100%;
+      max-height: 100%;
+      min-height: 0;
+      flex: 1 1 auto;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-gutter: stable;
+      padding: 14px 16px 8px 18px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-start;
+    }
+
+    .result-wrap::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .result-wrap::-webkit-scrollbar-thumb {
+      background: rgba(71, 85, 105, 0.55);
+      border-radius: 999px;
+    }
+
+    .result-wrap::-webkit-scrollbar-track {
+      background: transparent;
     }
 
     .result {
@@ -154,6 +197,7 @@ function crearEstilos() {
       line-height: 1.2;
       text-align: left;
       padding-left: 6px;
+      align-self: flex-start;
     }
 
     .periodic {
@@ -164,13 +208,46 @@ function crearEstilos() {
       font-weight: 800;
     }
 
+    .display-footer {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      align-items: center;
+      gap: 8px;
+      border-top: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(148, 163, 184, 0.08);
+      padding: 6px 12px 8px 12px;
+      box-sizing: border-box;
+    }
+
     .digit-count {
-      align-self: flex-end;
+      align-self: stretch;
       font-size: 0.7rem;
       color: #475569;
       font-weight: 600;
-      margin-top: 2px;
-      padding-right: 4px;
+      text-align: right;
+      box-sizing: border-box;
+    }
+
+    .copy-btn, .save-btn {
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      background: rgba(59, 130, 246, 0.12);
+      color: #0f172a;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: none;
+      min-width: 68px;
+    }
+
+    .copy-btn:hover, .save-btn:hover {
+      background: rgba(59, 130, 246, 0.2);
+    }
+
+    .save-btn {
+      border-color: rgba(16, 185, 129, 0.5);
+      background: rgba(16, 185, 129, 0.12);
     }
 
     .keys {
@@ -179,8 +256,8 @@ function crearEstilos() {
       gap: 12px;
       align-content: stretch;
       width: 100%;
-      height: 290px;
-      min-height: 290px;
+      height: min(100%, 290px);
+      min-height: 240px;
       max-height: 290px;
       margin-top: 0;
       align-self: end;
@@ -239,6 +316,15 @@ function crearEstilos() {
     .zero {
       grid-column: span 2;
     }
+
+    .decimal {
+      grid-column: span 1;
+    }
+
+    .paren {
+      grid-column: span 1;
+      font-size: 1.1rem;
+    }
   `;
 
   var styleTag = document.createElement('style');
@@ -281,18 +367,41 @@ function crearCalculadora() {
   display.className = 'display';
   display.setAttribute('aria-live', 'polite');
 
+  var resultWrap = document.createElement('div');
+  resultWrap.className = 'result-wrap';
+
   var result = document.createElement('div');
   result.className = 'result';
   result.id = 'result';
   result.textContent = '0';
+
+  var displayFooter = document.createElement('div');
+  displayFooter.className = 'display-footer';
 
   var digitCount = document.createElement('div');
   digitCount.className = 'digit-count';
   digitCount.id = 'digit-count';
   digitCount.textContent = 'Dígitos: 1';
 
-  display.appendChild(result);
-  display.appendChild(digitCount);
+  var copyButton = document.createElement('button');
+  copyButton.className = 'copy-btn';
+  copyButton.type = 'button';
+  copyButton.dataset.action = 'copy';
+  copyButton.textContent = 'Copiar';
+
+  var saveButton = document.createElement('button');
+  saveButton.className = 'save-btn';
+  saveButton.type = 'button';
+  saveButton.dataset.action = 'save';
+  saveButton.textContent = 'Guardar';
+
+  displayFooter.appendChild(digitCount);
+  displayFooter.appendChild(copyButton);
+  displayFooter.appendChild(saveButton);
+
+  resultWrap.appendChild(result);
+  display.appendChild(resultWrap);
+  display.appendChild(displayFooter);
 
   var keys = document.createElement('div');
   keys.className = 'keys';
@@ -313,8 +422,11 @@ function crearCalculadora() {
     { label: '1', value: '1' },
     { label: '2', value: '2' },
     { label: '3', value: '3' },
-    { label: '=', action: 'equals', className: 'equal' },
-    { label: '0', value: '0', className: 'zero' }
+    { label: '(', value: '(', className: 'paren' },
+    { label: '0', value: '0', className: 'zero' },
+    { label: ',', value: ',', className: 'decimal' },
+    { label: ')', value: ')', className: 'paren' },
+    { label: '=', action: 'equals', className: 'equal' }
   ];
 
   keyConfigs.forEach(function (item) {
@@ -357,6 +469,8 @@ function crearCalculadora() {
     history: history,
     result: result,
     digitCount: digitCount,
+    copyButton: copyButton,
+    saveButton: saveButton,
     historyList: historyList,
     buttons: Array.from(keys.querySelectorAll('button'))
   };
