@@ -29,6 +29,52 @@ function crearEstilos() {
       color: var(--text);
     }
 
+    .app-shell {
+      display: flex;
+      align-items: stretch;
+      gap: 18px;
+      width: min(94vw, 760px);
+    }
+
+    .history-panel {
+      width: min(30vw, 220px);
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 18px;
+      padding: 16px 14px;
+      color: var(--text);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.25);
+    }
+
+    .history-panel h3 {
+      margin: 0 0 12px;
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .history-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .history-item {
+      background: rgba(148, 163, 184, 0.08);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 0.82rem;
+      line-height: 1.4;
+      word-break: break-word;
+      color: var(--text);
+    }
+
     .calculator {
       width: min(92vw, 360px);
       padding: 20px;
@@ -36,6 +82,7 @@ function crearEstilos() {
       background: rgba(17, 24, 39, 0.9);
       box-shadow: 0 20px 50px var(--shadow);
       border: 1px solid rgba(148, 163, 184, 0.2);
+      flex-shrink: 0;
     }
 
     .display {
@@ -44,24 +91,52 @@ function crearEstilos() {
       min-height: 86px;
       border-radius: 16px;
       margin-bottom: 18px;
-      padding: 14px 16px;
+      padding: 14px 16px 10px 18px;
       display: flex;
       flex-direction: column;
-      align-items: flex-end;
+      align-items: flex-start;
       justify-content: center;
       box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.08);
+      gap: 4px;
     }
 
     .history {
       font-size: 0.9rem;
       color: var(--muted);
       min-height: 20px;
+      width: 100%;
+      text-align: left;
+      padding-left: 6px;
+      overflow-wrap: anywhere;
     }
 
     .result {
-      font-size: clamp(2rem, 5vw, 2.5rem);
+      font-size: clamp(1.2rem, 4vw, 2.5rem);
       font-weight: 700;
-      word-break: break-all;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      width: 100%;
+      min-height: 2.5rem;
+      line-height: 1.2;
+      text-align: left;
+      padding-left: 6px;
+    }
+
+    .periodic {
+      color: #b45309;
+      background: rgba(245, 158, 11, 0.18);
+      border-radius: 6px;
+      padding: 0 2px;
+      font-weight: 800;
+    }
+
+    .digit-count {
+      align-self: flex-end;
+      font-size: 0.7rem;
+      color: #475569;
+      font-weight: 600;
+      margin-top: 2px;
+      padding-right: 4px;
     }
 
     .keys {
@@ -129,6 +204,21 @@ function crearEstilos() {
 }
 
 function crearCalculadora() {
+  var appShell = document.createElement('div');
+  appShell.className = 'app-shell';
+
+  var historyPanel = document.createElement('aside');
+  historyPanel.className = 'history-panel';
+
+  var historyTitle = document.createElement('h3');
+  historyTitle.textContent = 'Historial';
+
+  var historyList = document.createElement('ul');
+  historyList.className = 'history-list';
+
+  historyPanel.appendChild(historyTitle);
+  historyPanel.appendChild(historyList);
+
   var calculator = document.createElement('div');
   calculator.className = 'calculator';
   calculator.setAttribute('aria-label', 'Calculadora');
@@ -147,8 +237,14 @@ function crearCalculadora() {
   result.id = 'result';
   result.textContent = '0';
 
+  var digitCount = document.createElement('div');
+  digitCount.className = 'digit-count';
+  digitCount.id = 'digit-count';
+  digitCount.textContent = 'Dígitos: 1';
+
   display.appendChild(history);
   display.appendChild(result);
+  display.appendChild(digitCount);
 
   var keys = document.createElement('div');
   keys.className = 'keys';
@@ -170,8 +266,7 @@ function crearCalculadora() {
     { label: '2', value: '2' },
     { label: '3', value: '3' },
     { label: '=', action: 'equals', className: 'equal' },
-    { label: '0', value: '0', className: 'zero' },
-    { label: '.', value: '.' }
+    { label: '0', value: '0', className: 'zero' }
   ];
 
   keyConfigs.forEach(function (item) {
@@ -199,12 +294,44 @@ function crearCalculadora() {
 
   calculator.appendChild(display);
   calculator.appendChild(keys);
+  appShell.appendChild(historyPanel);
+  appShell.appendChild(calculator);
 
-  return { calculator: calculator, history: history, result: result, buttons: Array.from(keys.querySelectorAll('button')) };
+  return {
+    shell: appShell,
+    calculator: calculator,
+    history: history,
+    result: result,
+    digitCount: digitCount,
+    historyList: historyList,
+    buttons: Array.from(keys.querySelectorAll('button'))
+  };
 }
 
 function actualizarDisplay(result, currentValue) {
-  result.textContent = currentValue;
+  var texto = currentValue || '0';
+  var textoPlano = texto.replace(/<[^>]*>/g, '');
+  var longitud = textoPlano === 'Error' ? 5 : textoPlano.replace('-', '').length;
+  var digitCount = result.digitCount;
+
+  var textoVisible = textoPlano.replace(/\(([^)]+)\)/g, '<span class="periodic">($1)</span>');
+  result.innerHTML = textoVisible;
+
+  if (digitCount) {
+    digitCount.textContent = 'Dígitos: ' + longitud;
+  }
+
+  if (textoPlano === 'Error') {
+    result.style.fontSize = '1.4rem';
+    return;
+  }
+
+  var size = 2.6 - longitud * 0.08;
+  if (size < 0.8) {
+    size = 0.8;
+  }
+
+  result.style.fontSize = size + 'rem';
 }
 
 function actualizarHistory(history, previousValue, operator, currentValue, waitingForNewValue) {

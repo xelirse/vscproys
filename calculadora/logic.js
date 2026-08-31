@@ -1,4 +1,23 @@
-function limpiarCalculadora(estado, result, history) {
+function actualizarListaHistorial(historyList, historial) {
+  historyList.innerHTML = '';
+
+  if (historial.length === 0) {
+    var emptyItem = document.createElement('li');
+    emptyItem.className = 'history-item';
+    emptyItem.textContent = 'Sin operaciones';
+    historyList.appendChild(emptyItem);
+    return;
+  }
+
+  historial.forEach(function (entrada) {
+    var item = document.createElement('li');
+    item.className = 'history-item';
+    item.textContent = entrada;
+    historyList.appendChild(item);
+  });
+}
+
+function limpiarCalculadora(estado, result, history, historyList) {
   estado.currentValue = '0';
   estado.previousValue = null;
   estado.operator = null;
@@ -6,6 +25,7 @@ function limpiarCalculadora(estado, result, history) {
   estado.justEvaluated = false;
   actualizarDisplay(result, estado.currentValue);
   actualizarHistory(history, estado.previousValue, estado.operator, estado.currentValue, estado.waitingForNewValue);
+  actualizarListaHistorial(historyList, estado.historial);
 }
 
 function ingresarDigito(estado, value, result, history) {
@@ -17,23 +37,6 @@ function ingresarDigito(estado, value, result, history) {
   }
 
   estado.justEvaluated = false;
-  actualizarDisplay(result, estado.currentValue);
-  actualizarHistory(history, estado.previousValue, estado.operator, estado.currentValue, estado.waitingForNewValue);
-}
-
-function ingresarDecimal(estado, result, history) {
-  if (estado.justEvaluated) {
-    estado.currentValue = '0';
-    estado.justEvaluated = false;
-  }
-
-  if (estado.waitingForNewValue) {
-    estado.currentValue = '0.';
-    estado.waitingForNewValue = false;
-  } else if (!estado.currentValue.includes('.')) {
-    estado.currentValue += '.';
-  }
-
   actualizarDisplay(result, estado.currentValue);
   actualizarHistory(history, estado.previousValue, estado.operator, estado.currentValue, estado.waitingForNewValue);
 }
@@ -53,33 +56,221 @@ function borrarUltimo(estado, result, history) {
   actualizarHistory(history, estado.previousValue, estado.operator, estado.currentValue, estado.waitingForNewValue);
 }
 
-function realizarCalculo(estado) {
-  var prev = parseFloat(estado.previousValue);
-  var current = parseFloat(estado.currentValue);
+function convertirBigInt(value) {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
 
-  if (Number.isNaN(prev) || Number.isNaN(current)) {
+  if (value.includes('.')) {
+    return null;
+  }
+
+  try {
+    return BigInt(value);
+  } catch (error) {
+    return null;
+  }
+}
+
+function parseRacional(value) {
+  if (value === null || value === undefined || value === '' || value === 'Error') {
+    return null;
+  }
+
+  var texto = String(value).trim();
+  if (texto === '') {
+    return null;
+  }
+
+  if (texto.indexOf('(') !== -1 || texto.indexOf(',') !== -1) {
+    var signo = 1n;
+    if (texto.charAt(0) === '-') {
+      signo = -1n;
+      texto = texto.slice(1);
+    }
+
+    var parteEntera = '0';
+    var parteNoPeriodica = '';
+    var partePeriodica = '';
+
+    if (texto.indexOf(',') !== -1) {
+      var partes = texto.split(',');
+      parteEntera = partes[0] || '0';
+      var resto = partes[1] || '';
+
+      if (resto.indexOf('(') !== -1) {
+        var subPartes = resto.split('(');
+        parteNoPeriodica = subPartes[0] || '';
+        partePeriodica = subPartes[1].replace(')', '');
+      } else {
+        parteNoPeriodica = resto;
+      }
+    } else if (texto.indexOf('(') !== -1) {
+      var subPartes = texto.split('(');
+      parteEntera = subPartes[0] || '0';
+      partePeriodica = subPartes[1].replace(')', '');
+    }
+
+    if (!/^[0-9]*$/.test(parteEntera)) {
+      return null;
+    }
+
+    if (!/^[0-9]*$/.test(parteNoPeriodica) || !/^[0-9]*$/.test(partePeriodica)) {
+      return null;
+    }
+
+    var entero = BigInt(parteEntera || '0');
+    var n = BigInt(parteNoPeriodica.length);
+    var m = BigInt(partePeriodica.length);
+    var x = BigInt(parteNoPeriodica || '0');
+    var y = BigInt(partePeriodica || '0');
+
+    var den = (10n ** n) * ((10n ** m) - 1n);
+    var numer = entero * den + x * ((10n ** m) - 1n) + y;
+
+    if (texto.indexOf('(') !== -1 && partePeriodica.length === 0) {
+      return null;
+    }
+
+    if (partePeriodica.length === 0 && parteNoPeriodica.length === 0) {
+      return { num: entero * signo, den: 1n };
+    }
+
+    return { num: numer * signo, den: den };
+  }
+
+  var entero = convertirBigInt(texto);
+  if (entero !== null) {
+    return { num: entero, den: 1n };
+  }
+
+  return null;
+}
+
+function racionalADecimal(racional) {
+  var num = racional.num;
+  var den = racional.den;
+  var signo = '';
+
+  if (num < 0n) {
+    signo = '-';
+    num = -num;
+  }
+
+  var entero = num / den;
+  var resto = num % den;
+
+  if (resto === 0n) {
+    return signo + entero.toString();
+  }
+
+  var cifras = '';
+  var indices = new Map();
+  var posicion = 0;
+
+  while (resto !== 0n && !indices.has(resto)) {
+    indices.set(resto, posicion);
+    resto = resto * 10n;
+    cifras += (resto / den).toString();
+    resto = resto % den;
+    posicion += 1;
+  }
+
+  if (resto === 0n) {
+    return signo + entero.toString() + ',' + cifras;
+  }
+
+  var inicio = indices.get(resto);
+  var noPeriodica = cifras.slice(0, inicio);
+  var periodica = cifras.slice(inicio);
+
+  return signo + entero.toString() + ',' + noPeriodica + '(' + periodica + ')';
+}
+
+function validarEntradaBigInt(estado) {
+  if (parseRacional(estado.currentValue) === null && estado.currentValue !== '0' && estado.currentValue !== 'Error') {
+    estado.currentValue = 'Error';
+    estado.previousValue = null;
+    estado.operator = null;
+    estado.waitingForNewValue = false;
+    estado.justEvaluated = true;
+    return false;
+  }
+
+  return true;
+}
+
+function racionalSuma(a, b) {
+  return {
+    num: a.num * b.den + b.num * a.den,
+    den: a.den * b.den
+  };
+}
+
+function racionalResta(a, b) {
+  return {
+    num: a.num * b.den - b.num * a.den,
+    den: a.den * b.den
+  };
+}
+
+function racionalMultiplica(a, b) {
+  return {
+    num: a.num * b.num,
+    den: a.den * b.den
+  };
+}
+
+function racionalDivide(a, b) {
+  if (b.num === 0n) {
+    return null;
+  }
+
+  return {
+    num: a.num * b.den,
+    den: a.den * b.num
+  };
+}
+
+function realizarCalculo(estado) {
+  var prev = parseRacional(estado.previousValue);
+  var current = parseRacional(estado.currentValue);
+
+  if (prev === null || current === null) {
     return 'Error';
   }
 
+  var result;
+
   switch (estado.operator) {
     case '+':
-      return (prev + current).toString();
+      result = racionalSuma(prev, current);
+      return racionalADecimal(result);
     case '-':
-      return (prev - current).toString();
+      result = racionalResta(prev, current);
+      return racionalADecimal(result);
     case '*':
-      return (prev * current).toString();
+      result = racionalMultiplica(prev, current);
+      return racionalADecimal(result);
     case '/':
-      if (current === 0) {
+      result = racionalDivide(prev, current);
+      if (result === null) {
         return 'Error';
       }
-      return (prev / current).toString();
+      return racionalADecimal(result);
     default:
       return estado.currentValue;
   }
 }
 
 function seleccionarOperacion(estado, nextOperator, result, history) {
-  var inputValue = parseFloat(estado.currentValue);
+  if (!validarEntradaBigInt(estado)) {
+    actualizarDisplay(result, estado.currentValue);
+    history.textContent = 'Error';
+    return;
+  }
+
+  var inputValue = parseRacional(estado.currentValue);
 
   if (estado.previousValue === null) {
     estado.previousValue = estado.currentValue;
@@ -89,7 +280,7 @@ function seleccionarOperacion(estado, nextOperator, result, history) {
     estado.previousValue = estado.currentValue;
   }
 
-  if (Number.isNaN(inputValue)) {
+  if (inputValue === null) {
     estado.currentValue = '0';
   }
 
@@ -100,7 +291,13 @@ function seleccionarOperacion(estado, nextOperator, result, history) {
   actualizarHistory(history, estado.previousValue, estado.operator, estado.currentValue, estado.waitingForNewValue);
 }
 
-function evaluar(estado, result, history) {
+function evaluar(estado, result, history, historyList) {
+  if (!validarEntradaBigInt(estado)) {
+    actualizarDisplay(result, estado.currentValue);
+    history.textContent = 'Error';
+    return;
+  }
+
   if (estado.operator === null || estado.waitingForNewValue) {
     return;
   }
@@ -117,6 +314,12 @@ function evaluar(estado, result, history) {
     return;
   }
 
+  var operacion = estado.previousValue + ' ' + estado.operator + ' ' + estado.currentValue + ' = ' + resultado;
+  estado.historial.push(operacion);
+  if (estado.historial.length > 12) {
+    estado.historial.shift();
+  }
+
   estado.currentValue = resultado;
   estado.previousValue = null;
   estado.operator = null;
@@ -124,4 +327,5 @@ function evaluar(estado, result, history) {
   estado.justEvaluated = true;
   actualizarDisplay(result, estado.currentValue);
   actualizarHistory(history, estado.previousValue, estado.operator, estado.currentValue, estado.waitingForNewValue);
+  actualizarListaHistorial(historyList, estado.historial);
 }

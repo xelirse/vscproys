@@ -1,11 +1,11 @@
-function asociarEventos(estado, result, history, buttons) {
+function asociarEventos(estado, result, history, buttons, historyList) {
   buttons.forEach(function (button) {
     button.addEventListener('click', function () {
       var value = button.dataset.value;
       var action = button.dataset.action;
 
       if (action === 'clear') {
-        limpiarCalculadora(estado, result, history);
+        limpiarCalculadora(estado, result, history, historyList);
         return;
       }
 
@@ -15,12 +15,7 @@ function asociarEventos(estado, result, history, buttons) {
       }
 
       if (action === 'equals') {
-        evaluar(estado, result, history);
-        return;
-      }
-
-      if (value === '.') {
-        ingresarDecimal(estado, result, history);
+        evaluar(estado, result, history, historyList);
         return;
       }
 
@@ -40,16 +35,12 @@ function asociarEventos(estado, result, history, buttons) {
       ingresarDigito(estado, key, result, history);
     }
 
-    if (key === '.') {
-      ingresarDecimal(estado, result, history);
-    }
-
     if (['+', '-', '*', '/'].includes(key)) {
       seleccionarOperacion(estado, key, result, history);
     }
 
     if (key === 'Enter' || key === '=') {
-      evaluar(estado, result, history);
+      evaluar(estado, result, history, historyList);
     }
 
     if (key === 'Backspace') {
@@ -57,7 +48,7 @@ function asociarEventos(estado, result, history, buttons) {
     }
 
     if (key === 'Escape') {
-      limpiarCalculadora(estado, result, history);
+      limpiarCalculadora(estado, result, history, historyList);
     }
   });
 }
