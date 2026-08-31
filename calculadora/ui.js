@@ -30,10 +30,30 @@ function crearEstilos() {
     }
 
     .app-shell {
-      display: flex;
-      align-items: stretch;
+      display: grid;
+      grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
       gap: 18px;
-      width: min(94vw, 760px);
+      width: min(94vw, 940px);
+      height: min(90vh, 860px);
+      max-height: 90vh;
+      align-items: stretch;
+    }
+
+    .left-column {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 12px;
+      height: 100%;
+      min-height: 0;
+      align-content: start;
+    }
+
+    .right-column {
+      display: grid;
+      grid-template-rows: 1fr;
+      height: 100%;
+      min-height: 0;
+      align-content: stretch;
     }
 
     .history-panel {
@@ -44,6 +64,9 @@ function crearEstilos() {
       padding: 16px 14px;
       color: var(--text);
       box-shadow: 0 12px 28px rgba(15, 23, 42, 0.25);
+      height: 100%;
+      min-height: 170px;
+      overflow: hidden;
     }
 
     .history-panel h3 {
@@ -61,7 +84,7 @@ function crearEstilos() {
       display: flex;
       flex-direction: column;
       gap: 8px;
-      max-height: 300px;
+      max-height: calc(100% - 42px);
       overflow-y: auto;
     }
 
@@ -76,21 +99,41 @@ function crearEstilos() {
     }
 
     .calculator {
-      width: min(92vw, 360px);
+      width: min(92vw, 420px);
       padding: 20px;
       border-radius: 24px;
       background: rgba(17, 24, 39, 0.9);
       box-shadow: 0 20px 50px var(--shadow);
       border: 1px solid rgba(148, 163, 184, 0.2);
       flex-shrink: 0;
+      display: grid;
+      grid-template-rows: minmax(60px, auto) minmax(120px, 1fr);
+      gap: 12px;
+      align-items: stretch;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .history {
+      background: rgba(148, 163, 184, 0.08);
+      border-radius: 14px;
+      padding: 12px 12px 10px;
+      font-size: 0.9rem;
+      color: var(--muted);
+      min-height: 50px;
+      width: 100%;
+      text-align: left;
+      overflow-wrap: anywhere;
+      display: flex;
+      align-items: center;
+      height: 100%;
     }
 
     .display {
       background: #f8fafc;
       color: #0f172a;
-      min-height: 86px;
+      min-height: 180px;
       border-radius: 16px;
-      margin-bottom: 18px;
       padding: 14px 16px 10px 18px;
       display: flex;
       flex-direction: column;
@@ -98,16 +141,7 @@ function crearEstilos() {
       justify-content: center;
       box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.08);
       gap: 4px;
-    }
-
-    .history {
-      font-size: 0.9rem;
-      color: var(--muted);
-      min-height: 20px;
-      width: 100%;
-      text-align: left;
-      padding-left: 6px;
-      overflow-wrap: anywhere;
+      height: 100%;
     }
 
     .result {
@@ -139,52 +173,25 @@ function crearEstilos() {
       padding-right: 4px;
     }
 
-    .calculator-layout {
-      display: grid;
-      grid-template-columns: minmax(0, 1.6fr) 110px;
-      grid-template-rows: auto auto;
-      gap: 12px;
-      align-items: stretch;
-    }
-
     .keys {
-      grid-column: 1;
-      grid-row: 2;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
-    }
-
-    .operations {
-      grid-column: 2;
-      grid-row: 1;
-      display: grid;
-      grid-template-rows: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-      align-items: stretch;
-    }
-
-    .display {
-      grid-column: 2;
-      grid-row: 2;
-      background: #f8fafc;
-      color: #0f172a;
-      min-height: 86px;
-      border-radius: 16px;
-      margin-bottom: 0;
-      padding: 14px 16px 10px 18px;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      justify-content: center;
-      box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.08);
-      gap: 4px;
+      align-content: stretch;
+      width: 100%;
+      height: 290px;
+      min-height: 290px;
+      max-height: 290px;
+      margin-top: 0;
+      align-self: end;
+      flex-shrink: 0;
     }
 
     button {
       border: none;
       border-radius: 14px;
-      padding: 18px 0;
+      padding: 0;
+      min-height: 0;
       font-size: 1.2rem;
       font-weight: 700;
       cursor: pointer;
@@ -192,11 +199,6 @@ function crearEstilos() {
       color: var(--text);
       transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
       box-shadow: 0 6px 0 rgba(15, 23, 42, 0.25);
-    }
-
-    .operations button,
-    .keys button {
-      width: 100%;
     }
 
     button:hover {
@@ -248,6 +250,12 @@ function crearCalculadora() {
   var appShell = document.createElement('div');
   appShell.className = 'app-shell';
 
+  var leftColumn = document.createElement('div');
+  leftColumn.className = 'left-column';
+
+  var rightColumn = document.createElement('div');
+  rightColumn.className = 'right-column';
+
   var historyPanel = document.createElement('aside');
   historyPanel.className = 'history-panel';
 
@@ -264,14 +272,14 @@ function crearCalculadora() {
   calculator.className = 'calculator';
   calculator.setAttribute('aria-label', 'Calculadora');
 
-  var display = document.createElement('div');
-  display.className = 'display';
-  display.setAttribute('aria-live', 'polite');
-
   var history = document.createElement('div');
   history.className = 'history';
   history.id = 'history';
   history.textContent = '0';
+
+  var display = document.createElement('div');
+  display.className = 'display';
+  display.setAttribute('aria-live', 'polite');
 
   var result = document.createElement('div');
   result.className = 'result';
@@ -283,40 +291,30 @@ function crearCalculadora() {
   digitCount.id = 'digit-count';
   digitCount.textContent = 'Dígitos: 1';
 
-  display.appendChild(history);
   display.appendChild(result);
   display.appendChild(digitCount);
-
-  var layout = document.createElement('div');
-  layout.className = 'calculator-layout';
 
   var keys = document.createElement('div');
   keys.className = 'keys';
 
-  var operations = document.createElement('div');
-  operations.className = 'operations';
-
   var keyConfigs = [
     { label: 'C', className: 'clear', action: 'clear' },
     { label: 'DEL', action: 'delete' },
+    { label: '÷', value: '/', className: 'operator' },
+    { label: '×', value: '*', className: 'operator' },
     { label: '7', value: '7' },
     { label: '8', value: '8' },
     { label: '9', value: '9' },
+    { label: '−', value: '-', className: 'operator' },
     { label: '4', value: '4' },
     { label: '5', value: '5' },
     { label: '6', value: '6' },
+    { label: '+', value: '+', className: 'operator' },
     { label: '1', value: '1' },
     { label: '2', value: '2' },
     { label: '3', value: '3' },
+    { label: '=', action: 'equals', className: 'equal' },
     { label: '0', value: '0', className: 'zero' }
-  ];
-
-  var operationConfigs = [
-    { label: '÷', value: '/', className: 'operator' },
-    { label: '×', value: '*', className: 'operator' },
-    { label: '−', value: '-', className: 'operator' },
-    { label: '+', value: '+', className: 'operator' },
-    { label: '=', action: 'equals', className: 'equal' }
   ];
 
   keyConfigs.forEach(function (item) {
@@ -342,36 +340,16 @@ function crearCalculadora() {
     keys.appendChild(button);
   });
 
-  operationConfigs.forEach(function (item) {
-    var label = item.label;
-    var value = item.value;
-    var action = item.action;
-    var className = item.className || '';
-    var button = document.createElement('button');
+  leftColumn.appendChild(historyPanel);
+  leftColumn.appendChild(keys);
 
-    if (className) {
-      button.className = className;
-    }
+  calculator.appendChild(history);
+  calculator.appendChild(display);
 
-    if (action) {
-      button.dataset.action = action;
-    }
+  rightColumn.appendChild(calculator);
 
-    if (value) {
-      button.dataset.value = value;
-    }
-
-    button.textContent = label;
-    operations.appendChild(button);
-  });
-
-  layout.appendChild(keys);
-  layout.appendChild(operations);
-  layout.appendChild(display);
-
-  calculator.appendChild(layout);
-  appShell.appendChild(historyPanel);
-  appShell.appendChild(calculator);
+  appShell.appendChild(leftColumn);
+  appShell.appendChild(rightColumn);
 
   return {
     shell: appShell,
@@ -380,7 +358,7 @@ function crearCalculadora() {
     result: result,
     digitCount: digitCount,
     historyList: historyList,
-    buttons: Array.from(keys.querySelectorAll('button')).concat(Array.from(operations.querySelectorAll('button')))
+    buttons: Array.from(keys.querySelectorAll('button'))
   };
 }
 
