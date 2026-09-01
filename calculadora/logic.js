@@ -1,7 +1,7 @@
 function actualizarListaHistorial(historyList, historial) {
   historyList.innerHTML = '';
 
-  if (historial.length === 0) {
+  if (!historial || historial.length === 0) {
     var emptyItem = document.createElement('li');
     emptyItem.className = 'history-item';
     emptyItem.textContent = 'Sin operaciones';
@@ -13,6 +13,7 @@ function actualizarListaHistorial(historyList, historial) {
     var item = document.createElement('li');
     item.className = 'history-item';
     item.textContent = entrada;
+    item.title = entrada;
     historyList.appendChild(item);
   });
 }
@@ -205,6 +206,12 @@ function parseRacional(value) {
   return null;
 }
 
+function esperarMs(ms) {
+  return new Promise(function (resolve) {
+    setTimeout(resolve, ms || 37000);
+  });
+}
+
 function racionalADecimal(racional) {
   if (racional === null || racional === undefined) {
     return 'Error';
@@ -251,6 +258,81 @@ function racionalADecimal(racional) {
   var periodica = cifras.slice(inicio);
 
   return signo + entero.toString() + ',' + noPeriodica + '(' + periodica + ')';
+}
+
+async function racionalADecimalAsync(racional, onChunk, chunkSize, delayMs) {
+  if (racional === null || racional === undefined) {
+    return 'Error';
+  }
+
+  var num = racional.num;
+  var den = racional.den;
+  var signo = '';
+
+  if (den === 0n) {
+    return 'Error';
+  }
+
+  if (num < 0n) {
+    signo = '-';
+    num = -num;
+  }
+
+  var entero = num / den;
+  var resto = num % den;
+
+  if (resto === 0n) {
+    return signo + entero.toString();
+  }
+
+  var cifras = '';
+  var indices = new Map();
+  var posicion = 0;
+  var chunkLength = chunkSize || 4000000;
+  var delay = delayMs || 37000;
+
+  while (resto !== 0n && !indices.has(resto)) {
+    indices.set(resto, posicion);
+    resto = resto * 10n;
+    cifras += (resto / den).toString();
+    resto = resto % den;
+    posicion += 1;
+  }
+
+  if (resto === 0n) {
+    var resultado = signo + entero.toString() + ',' + cifras;
+    if (typeof onChunk === 'function') {
+      var base = resultado;
+      var offset = 0;
+      while (offset < base.length) {
+        onChunk(base.slice(offset, offset + chunkLength));
+        offset += chunkLength;
+        if (offset < base.length) {
+          await esperarMs(delay);
+        }
+      }
+    }
+    return resultado;
+  }
+
+  var inicio = indices.get(resto);
+  var noPeriodica = cifras.slice(0, inicio);
+  var periodica = cifras.slice(inicio);
+  var resultado = signo + entero.toString() + ',' + noPeriodica + '(' + periodica + ')';
+
+  if (typeof onChunk === 'function') {
+    var base = resultado;
+    var offset = 0;
+    while (offset < base.length) {
+      onChunk(base.slice(offset, offset + chunkLength));
+      offset += chunkLength;
+      if (offset < base.length) {
+        await esperarMs(delay);
+      }
+    }
+  }
+
+  return resultado;
 }
 
 function validarEntradaBigInt(estado) {
@@ -329,6 +411,48 @@ function realizarCalculo(estado) {
   }
 }
 
+async function realizarCalculoAsync(estado, onChunk, result) {
+  var prev = parseRacional(estado.previousValue);
+  var current = parseRacional(estado.currentValue);
+
+  if (prev === null || current === null) {
+    return 'Error';
+  }
+
+  var chunkSize = Number(result && result.chunkSize ? result.chunkSize : 500000);
+  var delayMs = Number(result && result.delayMs ? result.delayMs : 37);
+
+  if (!Number.isFinite(chunkSize) || chunkSize < 1) {
+    chunkSize = 500000;
+  }
+
+  if (!Number.isFinite(delayMs) || delayMs < 0) {
+    delayMs = 37;
+  }
+
+  var resultValue;
+
+  switch (estado.operator) {
+    case '+':
+      resultValue = racionalSuma(prev, current);
+      return await racionalADecimalAsync(resultValue, onChunk, chunkSize, delayMs);
+    case '-':
+      resultValue = racionalResta(prev, current);
+      return await racionalADecimalAsync(resultValue, onChunk, chunkSize, delayMs);
+    case '*':
+      resultValue = racionalMultiplica(prev, current);
+      return await racionalADecimalAsync(resultValue, onChunk, chunkSize, delayMs);
+    case '/':
+      resultValue = racionalDivide(prev, current);
+      if (resultValue === null) {
+        return 'Error';
+      }
+      return await racionalADecimalAsync(resultValue, onChunk, chunkSize, delayMs);
+    default:
+      return estado.currentValue;
+  }
+}
+
 function seleccionarOperacion(estado, nextOperator, result, history) {
   if (!validarEntradaBigInt(estado)) {
     actualizarDisplay(result, estado.currentValue);
@@ -392,6 +516,105 @@ function evaluar(estado, result, history, historyList) {
   estado.waitingForNewValue = false;
   estado.justEvaluated = true;
   actualizarDisplay(result, estado.currentValue);
+  actualizarHistory(history, estado.previousValue, estado.operator, estado.currentValue, estado.waitingForNewValue);
+  actualizarListaHistorial(historyList, estado.historial);
+}
+
+async function evaluarAsync(estado, result, history, historyList, onChunk) {
+  if (!validarEntradaBigInt(estado)) {
+    actualizarDisplay(result, estado.currentValue);
+    history.textContent = 'Error';
+    return;
+  }
+
+  if (estado.operator === null || estado.waitingForNewValue) {
+    return;
+  }
+
+  var operandoAnterior = String(estado.previousValue || '');
+  var operador = estado.operator;
+  var operandoActual = String(estado.currentValue || '0');
+  var acumulado = '';
+  var esGeneracionLarga = !!result;
+
+  if (result) {
+    result.isGenerating = true;
+    result.fullValue = '';
+    if (result.pageControls) {
+      result.pageControls.style.display = 'none';
+      result.pageControls.innerHTML = '';
+    }
+  }
+
+  var resultado = await realizarCalculoAsync(estado, function (chunk) {
+    if (typeof onChunk === 'function') {
+      onChunk(chunk);
+    }
+    if (result) {
+      acumulado += chunk;
+      result.fullValue = acumulado;
+      if (acumulado.length <= 200000) {
+        result.setAttribute('title', acumulado);
+      } else {
+        result.removeAttribute('title');
+      }
+
+      var tamanoPagina = Number(result.chunkSize || 500000);
+      if (!Number.isFinite(tamanoPagina) || tamanoPagina < 1) {
+        tamanoPagina = 500000;
+      }
+
+      var paginaActual = Number(result.pageNumber || 0);
+      var inicio = paginaActual * tamanoPagina;
+      var fin = Math.min(acumulado.length, inicio + tamanoPagina);
+      var vistaActual = acumulado.slice(inicio, fin);
+      result.value = vistaActual;
+
+      if (result.digitCount) {
+        var longitudParcial = acumulado.replace('-', '').replace(/\(|\)/g, '').length;
+        result.digitCount.textContent = 'Dígitos: ' + longitudParcial;
+      }
+
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(function () {
+          actualizarHistory(history, operandoAnterior, operador, operandoActual, false);
+        });
+      } else {
+        actualizarHistory(history, operandoAnterior, operador, operandoActual, false);
+      }
+    }
+  }, result);
+
+  if (resultado === 'Error') {
+    if (result) {
+      result.isGenerating = false;
+    }
+    estado.currentValue = 'Error';
+    estado.previousValue = null;
+    estado.operator = null;
+    estado.waitingForNewValue = false;
+    estado.justEvaluated = true;
+    actualizarDisplay(result, estado.currentValue);
+    history.textContent = 'Error';
+    return;
+  }
+
+  var operacion = operandoAnterior + ' ' + operador + ' ' + operandoActual + ' = ' + resultado;
+  estado.historial.push(operacion);
+  if (estado.historial.length > 12) {
+    estado.historial.shift();
+  }
+
+  estado.currentValue = resultado;
+  result.fullValue = resultado;
+  estado.previousValue = null;
+  estado.operator = null;
+  estado.waitingForNewValue = false;
+  estado.justEvaluated = true;
+  if (result) {
+    result.isGenerating = false;
+  }
+  actualizarDisplay(result, resultado);
   actualizarHistory(history, estado.previousValue, estado.operator, estado.currentValue, estado.waitingForNewValue);
   actualizarListaHistorial(historyList, estado.historial);
 }

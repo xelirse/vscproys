@@ -15,13 +15,21 @@ function asociarEventos(estado, result, history, buttons, historyList, copyButto
       }
 
       if (action === 'equals') {
-        evaluar(estado, result, history, historyList);
+        result.chunkSize = Number(result.chunkSizeInput && result.chunkSizeInput.value ? result.chunkSizeInput.value : result.chunkSize || 500000) || 500000;
+        result.delayMs = Number(result.delayInput && result.delayInput.value ? result.delayInput.value : result.delayMs || 37) || 37;
+        evaluarAsync(estado, result, history, historyList, function (chunk) {
+          if (result && typeof result.value !== 'undefined') {
+            result.value = chunk;
+          } else {
+            result.textContent = chunk;
+          }
+        });
         return;
       }
 
       if (action === 'copy') {
         if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
-          var texto = String(estado.currentValue || '0');
+          var texto = String(result && result.fullValue ? result.fullValue : (estado.currentValue || '0'));
           navigator.clipboard.writeText(texto).then(function () {
             if (copyButton) {
               var original = copyButton.textContent;
@@ -40,7 +48,7 @@ function asociarEventos(estado, result, history, buttons, historyList, copyButto
       }
 
       if (action === 'save') {
-        var texto = String(estado.currentValue || '0');
+        var texto = String(result && result.fullValue ? result.fullValue : (estado.currentValue || '0'));
         var blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
         var url = URL.createObjectURL(blob);
         var link = document.createElement('a');
@@ -73,7 +81,7 @@ function asociarEventos(estado, result, history, buttons, historyList, copyButto
   if (copyButton) {
     copyButton.addEventListener('click', function () {
       if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
-        var texto = String(estado.currentValue || '0');
+        var texto = String(result && result.fullValue ? result.fullValue : (estado.currentValue || '0'));
         navigator.clipboard.writeText(texto).then(function () {
           var original = copyButton.textContent;
           copyButton.textContent = 'Listo';
@@ -89,7 +97,7 @@ function asociarEventos(estado, result, history, buttons, historyList, copyButto
 
   if (saveButton) {
     saveButton.addEventListener('click', function () {
-      var texto = String(estado.currentValue || '0');
+      var texto = String(result && result.fullValue ? result.fullValue : (estado.currentValue || '0'));
       var blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
       var url = URL.createObjectURL(blob);
       var link = document.createElement('a');
@@ -105,6 +113,29 @@ function asociarEventos(estado, result, history, buttons, historyList, copyButto
       setTimeout(function () {
         saveButton.textContent = original;
       }, 700);
+    });
+  }
+
+  if (result.chunkSizeInput) {
+    result.chunkSizeInput.addEventListener('change', function () {
+      var valor = Number(this.value || 500000);
+      if (!Number.isFinite(valor) || valor < 1) {
+        valor = 500000;
+      }
+      result.chunkSize = valor;
+      this.value = String(valor);
+      actualizarDisplay(result, result.fullValue || result.value || '0');
+    });
+  }
+
+  if (result.delayInput) {
+    result.delayInput.addEventListener('change', function () {
+      var valor = Number(this.value || 37);
+      if (!Number.isFinite(valor) || valor < 0) {
+        valor = 37;
+      }
+      result.delayMs = valor;
+      this.value = String(valor);
     });
   }
 
@@ -128,7 +159,15 @@ function asociarEventos(estado, result, history, buttons, historyList, copyButto
     }
 
     if (key === 'Enter' || key === '=') {
-      evaluar(estado, result, history, historyList);
+      result.chunkSize = Number(result.chunkSizeInput && result.chunkSizeInput.value ? result.chunkSizeInput.value : result.chunkSize || 500000) || 500000;
+      result.delayMs = Number(result.delayInput && result.delayInput.value ? result.delayInput.value : result.delayMs || 37) || 37;
+      evaluarAsync(estado, result, history, historyList, function (chunk) {
+        if (result && typeof result.value !== 'undefined') {
+          result.value = chunk;
+        } else {
+          result.textContent = chunk;
+        }
+      });
     }
 
     if (key === 'Backspace') {
